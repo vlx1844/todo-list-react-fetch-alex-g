@@ -5,106 +5,107 @@ const Home = () => {
     const [listaTareas, setListaTareas] = useState([]);
     const [mensajeError, setMensajeError] = useState("");
 
-    
-    const BASENAME = "https://playground.4geeks.com/todo";
-    const USERNAME = "vlx1844"; 
+    const urlBase = "https://playground.4geeks.com/todo";
+    const usuario = "tu-usuario"; 
 
-    
     useEffect(() => {
-        obtenerTareas();
+        cargarTareas();
     }, []);
 
-    const obtenerTareas = async () => {
+    const cargarTareas = async () => {
         try {
-            const response = await fetch(`${BASENAME}/users/${USERNAME}`);
+            const respuesta = await fetch(`${urlBase}/users/${usuario}`);
             
-            if (response.status === 404) {
-                console.log("El usuario no existe. Creando usuario...");
-                await crearUsuario();
+            if (respuesta.status === 404) {
+                await inicializarUsuario();
                 return;
             }
 
-            if (!response.ok) throw new Error("Error al obtener tareas");
+            if (!respuesta.ok) throw new Error();
 
-            const data = await response.json();
-            setListaTareas(data.todos || []); 
+            const datos = await respuesta.json();
+            setListaTareas(datos.todos || []); 
         } catch (error) {
-            console.error(error);
+            console.error("Error al cargar:", error);
         }
     };
 
-    const crearUsuario = async () => {
+    const inicializarUsuario = async () => {
         try {
-            const response = await fetch(`${BASENAME}/users/${USERNAME}`, {
+            const respuesta = await fetch(`${urlBase}/users/${usuario}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" }
             });
-            if (response.ok) obtenerTareas();
+            if (respuesta.ok) {
+                cargarTareas();
+            }
         } catch (error) {
-            console.error("Error al crear usuario:", error);
+            console.error("Error al inicializar:", error);
         }
     };
 
-    
-    const controlarTecla = async (e) => {
+    const manejarTeclado = async (e) => {
         if (e.key === "Enter") {
-            if (tareaNueva.trim() === "") {
+            const textoLimpio = tareaNueva.trim();
+
+            if (textoLimpio === "") {
                 setMensajeError("El campo no puede estar vacío");
-            } else if (tareaNueva.trim().length < 3) {
+                return;
+            } 
+            
+            if (textoLimpio.length < 3) {
                 setMensajeError("La tarea debe tener al menos 3 caracteres");
-            } else {
-                
-                try {
-                    const nuevaTareaAPI = {
-                        label: tareaNueva.trim(),
-                        is_done: false
-                    };
+                return;
+            }
 
-                    const response = await fetch(`${BASENAME}/todos/${USERNAME}`, {
-                        method: "POST",
-                        body: JSON.stringify(nuevaTareaAPI),
-                        headers: { "Content-Type": "application/json" }
-                    });
+            try {
+                const estructuraTarea = {
+                    label: textoLimpio,
+                    is_done: false
+                };
 
-                    if (response.ok) {
-                        setTareaNueva("");
-                        setMensajeError("");
-                        obtenerTareas(); 
-                    }
-                } catch (error) {
-                    console.error("Error al añadir la tarea:", error);
+                const respuesta = await fetch(`${urlBase}/todos/${usuario}`, {
+                    method: "POST",
+                    body: JSON.stringify(estructuraTarea),
+                    headers: { "Content-Type": "application/json" }
+                });
+
+                if (respuesta.ok) {
+                    setTareaNueva("");
+                    setMensajeError("");
+                    cargarTareas(); 
                 }
+            } catch (error) {
+                console.error("Error al guardar:", error);
             }
         }
     };
 
-    
-    const borrarTarea = async (todoId) => {
+    const eliminarItem = async (id) => {
         try {
-            const response = await fetch(`${BASENAME}/todos/${todoId}`, {
+            const respuesta = await fetch(`${urlBase}/todos/${id}`, {
                 method: "DELETE"
             });
 
-            if (response.ok) {
-                obtenerTareas(); /
+            if (respuesta.ok) {
+                cargarTareas(); 
             }
         } catch (error) {
-            console.error("Error al eliminar la tarea:", error);
+            console.error("Error al eliminar:", error);
         }
     };
 
-    
-    const limpiarTodo = async () => {
+    const vaciarListaCompleta = async () => {
         try {
-            const response = await fetch(`${BASENAME}/users/${USERNAME}`, {
+            const respuesta = await fetch(`${urlBase}/users/${usuario}`, {
                 method: "DELETE"
             });
-            if (response.ok) {
+            if (respuesta.ok) {
                 setListaTareas([]);
-                await crearUsuario(); 
+                await inicializarUsuario(); 
             }
         } catch (error) {
-            console.error("Error al limpiar todo:", error);
+            console.error("Error al vaciar:", error);
         }
     };
 
@@ -123,7 +124,7 @@ const Home = () => {
                             setTareaNueva(e.target.value);
                             if (mensajeError) setMensajeError("");
                         }}
-                        onKeyDown={controlarTecla}
+                        onKeyDown={manejarTeclado}
                     />
                 </div>
 
@@ -139,14 +140,13 @@ const Home = () => {
                             No hay tareas, añadir tareas
                         </li>
                     ) : (
-                        
                         listaTareas.map((todo) => (
                             <li key={todo.id} className="list-group-item d-flex justify-content-between align-items-center py-3 tarea-item">
                                 {todo.label}
                                 <i 
                                     className="fas fa-times icono-borrar" 
                                     style={{ cursor: "pointer" }}
-                                    onClick={() => borrarTarea(todo.id)} 
+                                    onClick={() => eliminarItem(todo.id)} 
                                 ></i>
                             </li>
                         ))
@@ -157,9 +157,8 @@ const Home = () => {
                     <span>
                         {listaTareas.length} {listaTareas.length === 1 ? "item" : "items"} left
                     </span>
-                    
                     {listaTareas.length > 0 && (
-                        <button className="btn btn-link text-danger p-0 m-0 text-decoration-none" style={{ fontSize: "12px" }} onClick={limpiarTodo}>
+                        <button className="btn btn-link text-danger p-0 m-0 text-decoration-none" style={{ fontSize: "12px" }} onClick={vaciarListaCompleta}>
                             Limpiar todo
                         </button>
                     )}
